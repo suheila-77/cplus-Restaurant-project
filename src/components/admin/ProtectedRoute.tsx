@@ -3,12 +3,15 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2 } from "lucide-react";
 
+type Role = "admin" | "product_manager";
+
 interface ProtectedRouteProps {
   children: ReactNode;
+  allowedRoles?: Role[];
 }
 
-export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
-  const { user, loading, checkingRole, isAdmin } = useAuth();
+export const ProtectedRoute = ({ children, allowedRoles = ["admin"] }: ProtectedRouteProps) => {
+  const { user, loading, checkingRole, isAdmin, isProductManager } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -29,7 +32,11 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     return null;
   }
 
-  if (!isAdmin) {
+  const hasAccess =
+    (allowedRoles.includes("admin") && isAdmin) ||
+    (allowedRoles.includes("product_manager") && isProductManager);
+
+  if (!hasAccess) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">

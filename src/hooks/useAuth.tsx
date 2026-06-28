@@ -9,21 +9,21 @@ export const useAuth = () => {
   const [loading, setLoading] = useState(true);
   const [checkingRole, setCheckingRole] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isProductManager, setIsProductManager] = useState(false);
 
   const checkAdminRole = async (userId: string) => {
     setCheckingRole(true);
     try {
-      const { data, error } = await supabase
-        .rpc('has_role', { _user_id: userId, _role: 'admin' });
-      
-      if (!error && data) {
-        setIsAdmin(true);
-      } else {
-        setIsAdmin(false);
-      }
+      const [adminRes, pmRes] = await Promise.all([
+        supabase.rpc('has_role', { _user_id: userId, _role: 'admin' as any }),
+        supabase.rpc('has_role', { _user_id: userId, _role: 'product_manager' as any }),
+      ]);
+      setIsAdmin(!adminRes.error && !!adminRes.data);
+      setIsProductManager(!pmRes.error && !!pmRes.data);
     } catch (error) {
-      console.error('Error checking admin role:', error);
+      console.error('Error checking roles:', error);
       setIsAdmin(false);
+      setIsProductManager(false);
     } finally {
       setCheckingRole(false);
     }
@@ -110,6 +110,7 @@ export const useAuth = () => {
       
       toast.success("Signed out successfully");
       setIsAdmin(false);
+      setIsProductManager(false);
     } catch (error: any) {
       toast.error(error.message || "Failed to sign out");
     }
@@ -121,6 +122,8 @@ export const useAuth = () => {
     loading,
     checkingRole,
     isAdmin,
+    isProductManager,
+    canManageProducts: isAdmin || isProductManager,
     signUp,
     signIn,
     signOut,

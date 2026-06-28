@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
+import { createClient } from 'npm:@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -109,20 +109,20 @@ Deno.serve(async (req) => {
     
     console.log('User created successfully:', newUser.user?.id);
 
-    // Assign role if admin
-    if (role === 'admin' && newUser.user) {
-      console.log('Assigning admin role to user:', newUser.user.id);
+    // Assign role if specified
+    if ((role === 'admin' || role === 'product_manager') && newUser.user) {
+      console.log(`Assigning ${role} role to user:`, newUser.user.id);
       const { error: roleInsertError } = await supabaseAdmin
         .from('user_roles')
         .insert({
           user_id: newUser.user.id,
-          role: 'admin',
+          role: role,
         })
 
       if (roleInsertError) {
-        console.error('Error assigning admin role:', roleInsertError)
+        console.error(`Error assigning ${role} role:`, roleInsertError)
       } else {
-        console.log('Admin role assigned successfully');
+        console.log(`${role} role assigned successfully`);
       }
     }
 

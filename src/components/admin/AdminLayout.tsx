@@ -1,5 +1,5 @@
-import { ReactNode } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { ReactNode, useEffect } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -18,16 +18,25 @@ interface AdminLayoutProps {
   children: ReactNode;
 }
 
-const menuItems = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/admin" },
-  { icon: ShoppingBag, label: "Products", path: "/admin/products" },
-  { icon: ShoppingCart, label: "Orders", path: "/admin/orders" },
-  { icon: Users, label: "Users", path: "/admin/users" },
+const allMenuItems = [
+  { icon: LayoutDashboard, label: "Dashboard", path: "/admin", adminOnly: true },
+  { icon: ShoppingBag, label: "Products", path: "/admin/products", adminOnly: false },
+  { icon: ShoppingCart, label: "Orders", path: "/admin/orders", adminOnly: true },
+  { icon: Users, label: "Users", path: "/admin/users", adminOnly: true },
 ];
 
 export const AdminLayout = ({ children }: AdminLayoutProps) => {
   const location = useLocation();
-  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+  const { user, signOut, isAdmin, isProductManager } = useAuth();
+
+  useEffect(() => {
+    if (!isAdmin && isProductManager && location.pathname === "/admin") {
+      navigate("/admin/products", { replace: true });
+    }
+  }, [isAdmin, isProductManager, location.pathname, navigate]);
+
+  const menuItems = allMenuItems.filter((item) => isAdmin || !item.adminOnly);
 
   return (
     <div className="flex h-screen bg-background">
@@ -74,7 +83,7 @@ export const AdminLayout = ({ children }: AdminLayoutProps) => {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{user?.email}</p>
-              <p className="text-xs text-muted-foreground">Admin</p>
+              <p className="text-xs text-muted-foreground">{isAdmin ? "Admin" : isProductManager ? "Product Manager" : "User"}</p>
             </div>
           </div>
           <Button

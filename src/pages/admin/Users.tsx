@@ -160,8 +160,7 @@ const Users = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="admin">Admin</SelectItem>
-                      {/* <SelectItem value="registrar">Registrar</SelectItem> */}
-                      {/* <SelectItem value="viewer">Viewer</SelectItem> */}
+                      <SelectItem value="product_manager">Product Manager</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -207,14 +206,13 @@ const Users = () => {
                           })}
                           disabled={updateRoleMutation.isPending}
                         >
-                          <SelectTrigger className="w-32">
+                          <SelectTrigger className="w-44">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            {/* <SelectItem value="none">No Role</SelectItem> */}
+                            <SelectItem value="none">No Role</SelectItem>
                             <SelectItem value="admin">Admin</SelectItem>
-                            {/* <SelectItem value="registrar">Registrar</SelectItem>
-                            <SelectItem value="viewer">Viewer</SelectItem> */}
+                            <SelectItem value="product_manager">Product Manager</SelectItem>
                           </SelectContent>
                         </Select>
                       </TableCell>

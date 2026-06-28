@@ -1,9 +1,8 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Pencil, Trash2, Upload, Link as LinkIcon, Images, Check, X } from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Plus, Search, Pencil, Trash2, Upload, Link as LinkIcon } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -46,12 +45,6 @@ export default function Products() {
   const [uploadMode, setUploadMode] = useState<"upload" | "url">("upload");
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-
-  // Bulk upload state
-  const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
-  const [bulkUploading, setBulkUploading] = useState(false);
-  const [bulkUploadResults, setBulkUploadResults] = useState<{productId: string; productName: string; status: 'pending' | 'uploading' | 'success' | 'error'; file?: File; error?: string}[]>([]);
-  const bulkFileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -188,86 +181,6 @@ export default function Products() {
     setUploadProgress(0);
   };
 
-  // Bulk upload functions
-  const openBulkUploadDialog = () => {
-    const productsWithoutImages = filteredProducts.filter(p => !p.image_url);
-    setBulkUploadResults(productsWithoutImages.map(p => ({
-      productId: p.id,
-      productName: p.name,
-      status: 'pending' as const
-    })));
-    setIsBulkDialogOpen(true);
-  };
-
-  const handleBulkFileSelect = (productId: string, file: File | undefined) => {
-    setBulkUploadResults(prev => prev.map(item => 
-      item.productId === productId 
-        ? { ...item, file, status: file ? 'pending' as const : 'pending' as const }
-        : item
-    ));
-  };
-
-  const removeFromBulkUpload = (productId: string) => {
-    setBulkUploadResults(prev => prev.filter(item => item.productId !== productId));
-  };
-
-  const handleBulkUpload = async () => {
-    const itemsToUpload = bulkUploadResults.filter(item => item.file);
-    if (itemsToUpload.length === 0) {
-      toast.error("Please select at least one image to upload");
-      return;
-    }
-
-    setBulkUploading(true);
-
-    for (const item of itemsToUpload) {
-      if (!item.file) continue;
-
-      // Update status to uploading
-      setBulkUploadResults(prev => prev.map(i => 
-        i.productId === item.productId ? { ...i, status: 'uploading' as const } : i
-      ));
-
-      try {
-        const fileExt = item.file.name.split(".").pop();
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from("product-images")
-          .upload(fileName, item.file);
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from("product-images")
-          .getPublicUrl(fileName);
-
-        // Update product with new image URL
-        await updateProduct.mutateAsync({ id: item.productId, image_url: publicUrl });
-
-        setBulkUploadResults(prev => prev.map(i => 
-          i.productId === item.productId ? { ...i, status: 'success' as const } : i
-        ));
-      } catch (error: any) {
-        setBulkUploadResults(prev => prev.map(i => 
-          i.productId === item.productId ? { ...i, status: 'error' as const, error: error.message } : i
-        ));
-      }
-    }
-
-    setBulkUploading(false);
-    
-    const successCount = bulkUploadResults.filter(r => r.status === 'success').length;
-    if (successCount > 0) {
-      toast.success(`Successfully uploaded ${successCount} image(s)`);
-    }
-  };
-
-  const closeBulkDialog = () => {
-    setIsBulkDialogOpen(false);
-    setBulkUploadResults([]);
-  };
-
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -276,21 +189,16 @@ export default function Products() {
             <h1 className="text-3xl font-bold tracking-tight">Products</h1>
             <p className="text-muted-foreground">Manage your menu items</p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={openBulkUploadDialog}>
-              <Images className="h-4 w-4 mr-2" />
-              Bulk Upload Images
-            </Button>
-            <Dialog open={isDialogOpen} onOpenChange={(open) => {
-              setIsDialogOpen(open);
-              if (!open) resetForm();
-            }}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Product
-                </Button>
-              </DialogTrigger>
+          <Dialog open={isDialogOpen} onOpenChange={(open) => {
+            setIsDialogOpen(open);
+            if (!open) resetForm();
+          }}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Product
+              </Button>
+            </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{editingProduct ? "Edit Product" : "Add New Product"}</DialogTitle>
@@ -443,97 +351,7 @@ export default function Products() {
               </form>
             </DialogContent>
           </Dialog>
-          </div>
         </div>
-
-        {/* Bulk Upload Dialog */}
-        <Dialog open={isBulkDialogOpen} onOpenChange={(open) => {
-          if (!open && !bulkUploading) closeBulkDialog();
-        }}>
-          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Bulk Image Upload</DialogTitle>
-              <DialogDescription>
-                Upload images for multiple products at once. Products without images are shown below.
-              </DialogDescription>
-            </DialogHeader>
-            
-            {bulkUploadResults.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                All products already have images!
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="border rounded-lg divide-y max-h-[400px] overflow-y-auto">
-                  {bulkUploadResults.map((item) => (
-                    <div key={item.productId} className="p-3 flex items-center gap-3">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{item.productName}</p>
-                        {item.file && (
-                          <p className="text-xs text-muted-foreground truncate">{item.file.name}</p>
-                        )}
-                        {item.status === 'error' && (
-                          <p className="text-xs text-destructive">{item.error}</p>
-                        )}
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        {item.status === 'success' ? (
-                          <div className="flex items-center gap-1 text-green-600">
-                            <Check className="h-4 w-4" />
-                            <span className="text-sm">Done</span>
-                          </div>
-                        ) : item.status === 'uploading' ? (
-                          <div className="text-sm text-muted-foreground">Uploading...</div>
-                        ) : item.status === 'error' ? (
-                          <div className="flex items-center gap-1 text-destructive">
-                            <X className="h-4 w-4" />
-                            <span className="text-sm">Failed</span>
-                          </div>
-                        ) : (
-                          <>
-                            <Input
-                              type="file"
-                              accept="image/*"
-                              className="w-48 text-xs cursor-pointer"
-                              onChange={(e) => handleBulkFileSelect(item.productId, e.target.files?.[0])}
-                              disabled={bulkUploading}
-                            />
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeFromBulkUpload(item.productId)}
-                              disabled={bulkUploading}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="flex justify-between items-center">
-                  <p className="text-sm text-muted-foreground">
-                    {bulkUploadResults.filter(r => r.file).length} of {bulkUploadResults.length} products selected
-                  </p>
-                  <div className="flex gap-2">
-                    <Button variant="outline" onClick={closeBulkDialog} disabled={bulkUploading}>
-                      {bulkUploadResults.some(r => r.status === 'success') ? 'Close' : 'Cancel'}
-                    </Button>
-                    <Button 
-                      onClick={handleBulkUpload} 
-                      disabled={bulkUploading || !bulkUploadResults.some(r => r.file && r.status === 'pending')}
-                    >
-                      {bulkUploading ? 'Uploading...' : 'Upload All'}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
 
         <div className="flex gap-4">
           <div className="relative flex-1">
